@@ -1,0 +1,85 @@
+---
+title: "spark_code"
+author: "Le Pham Tuyen"
+date: "December 16, 2015"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+---
+
+```{r}
+# Google cloud
+# start master node: ./start-master.sh
+# start worker node: ./../lephamtuyen_bkpro/spark/sbin/start-slave.sh spark://jupiter.kyunghee.ac.kr:7077 -m 13G
+
+# Set Spark home on driver machine
+Sys.setenv(SPARK_HOME='/Users/tuyen/spark-1.5.2')
+.libPaths(c(file.path(Sys.getenv('SPARK_HOME'), 'R', 'lib'), .libPaths()))
+
+# Set library
+library(SparkR)
+
+# Initialize spark context
+sc <- sparkR.init(master='spark://jupiter.kyunghee.ac.kr:7077', sparkPackages="com.databricks:spark-csv_2.11:1.2.0", sparkEnvir=list(spark.executor.memory="13g",spark.driver.memory="6g",spark.driver.cores="2",spark.driver.maxResultSize="10g",spark.driver.memory="6g",spark.akka.frameSize="1024"))
+
+#sc <- sparkR.init(master='spark://spark-master:7077', sparkPackages="com.databricks:spark-csv_2.11:1.2.0", sparkEnvir=list(spark.executor.memory="13g"))
+sqlContext <- sparkRSQL.init(sc)
+
+# Read cvs file
+housing_a_file_path <- file.path('/data/ss13husa.csv')
+housing_b_file_path <- file.path('/data/ss13husb.csv')
+person_a_file_path <- file.path('/data/ss13pusa.csv')
+person_b_file_path <- file.path('/data/ss13pusb.csv')
+
+housing_a_df <- read.df(sqlContext, 
+                            housing_a_file_path, 
+                            header='true', 
+                            source = "com.databricks.spark.csv", 
+                            inferSchema='true')
+housing_b_df <- read.df(sqlContext, 
+                            housing_b_file_path, 
+                            header='true', 
+                            source = "com.databricks.spark.csv", 
+                            inferSchema='true')
+person_a_df <- read.df(sqlContext, 
+                            person_a_file_path, 
+                            header='true', 
+                            source = "com.databricks.spark.csv", 
+                            inferSchema='true')
+person_b_df <- read.df(sqlContext, 
+                            person_b_file_path, 
+                            header='true', 
+                            source = "com.databricks.spark.csv", 
+                            inferSchema='true')
+
+# Merge tables
+housing <- rbind(housing_a_df, housing_b_df)
+population <- rbind(person_a_df, person_b_df)
+
+dataset = merge(population,housing_df,by="SERIALNO")
+
+# Read number of row
+nrow(housing_df)
+
+# Show first rows
+head(housing_df)
+
+# Logistics
+load(file = "/data/training.Rdata")
+load(file = "/data/testing.Rdata")
+
+training$AGEP = training$AGEP[,1]
+training$HINCP = training$HINCP[,1]
+training$NOC = training$NOC[,1]
+training$NP = training$NP[,1]
+training$PAP = training$PAP[,1]
+training$SEMP = training$SEMP[,1]
+training$VEH = training$VEH[,1]
+
+train <- createDataFrame(sqlContext, training)
+testing <- createDataFrame(sqlContext, testing)
+
+# run logistics model.
+fit <- glm(HICOV ~ ., data = train, family = "binomial")
+
+```

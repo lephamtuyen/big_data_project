@@ -1,0 +1,249 @@
+---
+title: "Project"
+author: "Le Pham Tuyen"
+date: "November 21, 2015"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+---
+
+```{r}
+###########
+# Read CSV
+###########
+population = rbind(read.csv("/data/ss13pusa.csv"),read.csv("/data/ss13pusb.csv"))
+population = population[,c("SERIALNO","AGEP","CIT","COW","DIS","HICOV","INDP","JWTR","MAR","MIL","MSP","PAP","RAC1P","SCH","SEMP","SEX","ST","WKHP")]
+
+housing = rbind(read.csv("/data/ss13husa.csv"),read.csv("/data/ss13husb.csv"))
+housing = housing[,c("SERIALNO","BLD","FES","FS","HHT","HINCP","MV","NOC","NP","RWAT","TYPE","VEH","WIF")]
+
+###########
+# Merge table
+###########
+dataset = merge(population,housing,by="SERIALNO")
+
+rm(population)
+rm(housing)
+
+###########
+# Pre-processing data
+###########
+dataset$DIS[dataset$DIS==2]=0
+dataset$FS[dataset$FS==2]=0
+dataset$HICOV[dataset$HICOV==2]=0
+dataset$RWAT[dataset$RWAT==2]=0
+dataset$SEX[dataset$SEX==2]=0
+summary(dataset)
+
+#Recast data type to appropriate class
+dataset$COW[is.na(dataset$COW)]="NA"
+dataset$COW = as.factor(dataset$COW)
+
+dataset$DIS[is.na(dataset$DIS)]="NA"
+dataset$DIS = as.factor(dataset$DIS)
+
+dataset$HICOV[is.na(dataset$HICOV)]="NA"
+dataset$HICOV = as.factor(dataset$HICOV)
+
+dataset$INDP[is.na(dataset$INDP)]="NA"
+dataset$INDP = as.factor(dataset$INDP)
+
+dataset$JWTR[is.na(dataset$JWTR)]="NA"
+dataset$JWTR = as.factor(dataset$JWTR)
+
+dataset$MAR[is.na(dataset$MAR)]="NA"
+dataset$MAR = as.factor(dataset$MAR)
+
+dataset$MIL[is.na(dataset$MIL)]="NA"
+dataset$MIL = as.factor(dataset$MIL)
+
+dataset$MSP[is.na(dataset$MSP)]="NA"
+dataset$MSP = as.factor(dataset$MSP)
+
+dataset$PAP[is.na(dataset$PAP)]="NA"
+dataset$PAP = as.factor(dataset$PAP)
+dataset$PAP = as.numeric(dataset$PAP)
+
+dataset$RAC1P[is.na(dataset$RAC1P)]="NA"
+dataset$RAC1P = as.factor(dataset$RAC1P)
+
+dataset$SCH[is.na(dataset$SCH)]="NA"
+dataset$SCH = as.factor(dataset$SCH)
+
+dataset$SEMP[is.na(dataset$SEMP)]="NA"
+dataset$SEMP = as.factor(dataset$SEMP)
+dataset$SEMP = as.numeric(dataset$SEMP)
+
+dataset$SEX[is.na(dataset$SEX)]="NA"
+dataset$SEX = as.factor(dataset$SEX)
+
+dataset$ST[is.na(dataset$ST)]="NA"
+dataset$ST = as.factor(dataset$ST)
+
+dataset$WKHP[is.na(dataset$WKHP)]="NA"
+dataset$WKHP = as.factor(dataset$WKHP)
+dataset$WKHP = as.integer(dataset$WKHP)
+
+dataset$BLD[is.na(dataset$BLD)]="NA"
+dataset$BLD = as.factor(dataset$BLD)
+
+dataset$FES[is.na(dataset$FES)]="NA"
+dataset$FES = as.factor(dataset$FES)
+
+dataset$FS[is.na(dataset$FS)]="NA"
+dataset$FS = as.factor(dataset$FS)
+
+dataset$HHT[is.na(dataset$HHT)]="NA"
+dataset$HHT = as.factor(dataset$HHT)
+
+dataset$HINCP[is.na(dataset$HINCP)]="NA"
+dataset$HINCP = as.factor(dataset$HINCP)
+dataset$HINCP = as.numeric(dataset$HINCP)
+
+dataset$MV[is.na(dataset$MV)]="NA"
+dataset$MV = as.factor(dataset$MV)
+
+dataset$NOC[is.na(dataset$NOC)]="NA"
+dataset$NOC = as.factor(dataset$NOC)
+dataset$NOC = as.integer(dataset$NOC)
+
+dataset$RWAT[is.na(dataset$RWAT)]="NA"
+dataset$RWAT = as.factor(dataset$RWAT)
+
+dataset$TYPE[is.na(dataset$TYPE)]="NA"
+dataset$TYPE = as.factor(dataset$TYPE)
+
+dataset$VEH[is.na(dataset$VEH)]="NA"
+dataset$VEH = as.factor(dataset$VEH)
+dataset$VEH = as.integer(dataset$VEH)
+
+dataset$CIT[is.na(dataset$CIT)]="NA"
+dataset$CIT = as.factor(dataset$CIT)
+
+# Standardize the continous variables to center the data and to have common scale
+dataset$AGEP = scale(dataset$AGEP, center = TRUE, scale = TRUE)
+dataset$HINCP = scale(dataset$HINCP, center = TRUE, scale = TRUE)
+dataset$NOC = scale(dataset$NOC, center = TRUE, scale = TRUE)
+dataset$NP = scale(dataset$NP, center = TRUE, scale = TRUE)
+dataset$PAP = scale(dataset$PAP, center = TRUE, scale = TRUE)
+dataset$SEMP = scale(dataset$SEMP, center = TRUE, scale = TRUE)
+dataset$VEH = scale(dataset$VEH, center = TRUE, scale = TRUE)
+
+# IDENTIFYING UNTIDY, REDUNDANT, AND COLLINEAR VARIABLES
+# Make a correlation Matrix to identify which pairs have high correlation greater than .80
+corel = abs(cor(dataset[c("AGEP", "HINCP", "NOC", "NP", "PAP", "SEMP", "VEH", "WKHP")]))
+corel
+
+#####################
+# ASSOCIATION RULES
+#####################
+# Drop numeric column
+dataset_rules = dataset[-c(1,2,12,18,23,25,     7, 11, 15, 17, 20, 22, 26, 28, 29, 30)]
+
+# Using apriori algorithm with confidence 0.5
+#install.packages("arules")
+#install.packages("arulesViz")
+library(arules)
+library(arulesViz)
+rules = apriori(dataset_rules, parameter = list(support=0.001,confidence=0.5))
+
+# Only get rules in which HICOV is 1
+subrules1 = subset(rules, (rhs %in% c("HICOV=1")))
+# Only get rules in which confidence is greater than 0.99
+subsubrules1 = subrules1[quality(subrules1)$confidence > 0.99]
+# Sort rules by lift
+rules_high_lift1=head(sort(subsubrules1,by="lift"),10)
+# Show the result
+inspect(rules_high_lift1)
+
+# Only get rules in which HICOV is 0
+subrules2 = subset(rules, (rhs %in% c("HICOV=0")))
+# Only get rules in which confidence is greater than 0.75
+subsubrules2 = subrules2[quality(subrules2)$confidence > 0.75]
+# Sort rules by lift
+rules_high_lift2=head(sort(subsubrules2,by="lift"),10)
+# Show the result
+inspect(rules_high_lift2)
+
+################
+# SPLIT DATA
+################
+# SELECTION FOR 19 VARIABLES USING TRAIN DATA SET
+# Leave out the 10 variables that wer found to be untidy, redundant, or collinear
+#training_step <- training_noMissing[-c("INDP", "MSP", "SEMP", "ST", "FES", "HHT", "NP", "VEH", "WIF")]
+# Test data set
+dataset_logistics <- dataset[-c(1, 7, 11, 15, 17, 20, 22, 26, 28, 29, 30)]
+
+#SPLITTING THE KNOWN DATA SET INTO 2 PARTS
+#install.packages("caret")
+#install.packages("kernlab")
+
+library(caret)
+
+# Divide the training data set 50-50 First half is called training data set
+# and missing values are removed
+intrain = createDataPartition(y = dataset_logistics$HICOV, p = 0.75, list = F)
+training = dataset_logistics[intrain, ]
+testing = dataset_logistics[-intrain, ]  
+
+# Omit NA value
+training = na.omit(training)
+testing = na.omit(testing)
+
+#####################
+# Logistics
+#####################
+fit <- glm(HICOV ~ ., data = training, family = "binomial")
+prediction<-predict(fit, type="response",newdata=testing)
+table<-table(prediction>0.5,testing$HICOV)
+table
+accuracy<-sum(diag(table))/(sum(table))
+accuracy
+
+#install.packages('ROCR')
+library("ROCR")
+
+# Show ROC/AUC
+ROCRpred = prediction(prediction, testing$HICOV)
+# Performance function
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+# Plot ROC curve with colors and threshold labels
+plot(ROCRperf, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+as.numeric(performance(ROCRpred, "auc")@y.values)
+
+######################
+# Decision tree
+######################
+#install.packages("rpart.plot")
+library("rpart")
+library("rpart.plot")
+
+fit = rpart(HICOV ~ ., method="class", data=training, cp=0.002)
+prediction<-predict(fit, type="class",newdata=testing)
+table<-table(prediction,testing$HICOV)
+table
+accuracy<-sum(diag(table))/(sum(table))
+accuracy
+
+# Show ROC/AUC
+prediction<-predict(fit,newdata=testing)[ , 2] #only decision tree
+ROCRpred = prediction(prediction, testing$HICOV)
+# Performance function
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+# Plot ROC curve with colors and threshold labels
+plot(ROCRperf, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+as.numeric(performance(ROCRpred, "auc")@y.values)
+
+##################
+# Naive Bayesian
+##################
+library("e1071")
+
+model <- naiveBayes(HICOV ~ .,data=training, laplace=.01)
+prediction <- predict (model,testing)
+table<-table(prediction,testing$HICOV)
+table
+accuracy<-sum(diag(table))/(sum(table))
+accuracy
+
+```
