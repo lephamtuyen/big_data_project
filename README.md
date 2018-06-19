@@ -1,1 +1,2 @@
-big_data_project
+-- Find models which can predict the healthcare coverage based on US Census Data 2013 (using R language)
+-- Large scale the model using Spark Apache
